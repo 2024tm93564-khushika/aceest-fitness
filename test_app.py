@@ -1,6 +1,6 @@
 # test_app.py
 import pytest
-from app import app
+from ACEest_Fitness import app
 
 @pytest.fixture
 def client():

@@ -3,7 +3,7 @@ pipeline {
     
     environment {
         DOCKER_IMAGE = "2024tm93564/aceest-fitness"
-        IMAGE_TAG = "v1.1-ci" 
+        IMAGE_TAG = "v1.1" 
     }
 
     stages {
