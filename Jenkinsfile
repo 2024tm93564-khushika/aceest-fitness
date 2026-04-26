@@ -39,12 +39,11 @@ pipeline {
             }
         }
 
-        stage('Deploy to Kubernetes') {
+        stage('Prepare for Kubernetes Deployment') {
             steps {
-                echo 'Updating Kubernetes deployment via pipeline...'
-                // Notice we are updating the existing deployment with the new v1.1-ci tag
-                sh "kubectl set image deployment/aceest-fitness-deployment aceest-fitness-container=${DOCKER_IMAGE}:${IMAGE_TAG}"
-                sh "kubectl rollout status deployment/aceest-fitness-deployment"
+                echo 'Image successfully pushed to registry.'
+                echo 'In an enterprise environment, Jenkins would now use a Service Account Token to trigger the Kubernetes API.'
+                echo 'For this local architecture, execute the deployment rollout from the host machine.'
             }
         }
     }
