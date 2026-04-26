@@ -1,0 +1,13 @@
+# k8s/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: aceest-fitness-service
+spec:
+  type: NodePort
+  selector:
+    app: aceest-fitness
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 5000

@@ -1,0 +1,30 @@
+version: '3.8'
+services:
+  sonarqube:
+    image: sonarqube:lts-community
+    container_name: sonarqube-server
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_FORCEAUTHENTICATION=false
+    networks:
+      - devops-net
+
+  jenkins:
+    image: jenkins/jenkins:lts
+    container_name: jenkins-server
+    user: root
+    ports:
+      - "8080:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_data:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock 
+    networks:
+      - devops-net
+
+networks:
+  devops-net:
+
+volumes:
+  jenkins_data:
