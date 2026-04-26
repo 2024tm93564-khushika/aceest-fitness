@@ -16,8 +16,8 @@ pipeline {
         stage('Unit Tests') {
             steps {
                 echo 'Running Pytest...'
-                sh 'pip install --break-system-packages -r requirements.txt'
-                sh 'python -m pytest'
+                sh 'pip3 install --break-system-packages -r requirements.txt'
+                sh 'python3 -m pytest'
             }
         }
 
@@ -42,6 +42,7 @@ pipeline {
         stage('Deploy to Kubernetes') {
             steps {
                 echo 'Updating Kubernetes deployment via pipeline...'
+                // Notice we are updating the existing deployment with the new v1.1-ci tag
                 sh "kubectl set image deployment/aceest-fitness-deployment aceest-fitness-container=${DOCKER_IMAGE}:${IMAGE_TAG}"
                 sh "kubectl rollout status deployment/aceest-fitness-deployment"
             }
