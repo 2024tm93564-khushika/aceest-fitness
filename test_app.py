@@ -15,22 +15,29 @@ def client():
 def test_health_check(client):
     response = client.get('/')
     assert response.status_code == 200
-    assert response.get_json()["version"] == "3.0.1"
+    assert response.get_json()["version"] == "3.1.2"
 
-def test_bmi_calculator(client):
-    # Add a client with height and weight
-    payload = {"name": "Test User", "program": "Beginner (BG)", "height": 180, "weight": 80}
-    client.post('/api/clients', json=payload)
-    
-    # Test BMI calculation (80 / 1.8^2 = 24.7)
-    response = client.get('/api/clients/Test User/bmi')
+def test_login_success(client):
+    response = client.post('/api/login', json={"username": "admin", "password": "admin"})
+    assert response.status_code == 200
+    assert response.get_json()["role"] == "Admin"
+
+def test_login_fail(client):
+    response = client.post('/api/login', json={"username": "admin", "password": "wrong"})
+    assert response.status_code == 401
+
+def test_ai_program_generator(client):
+    # Create client
+    client.post('/api/clients', json={"name": "Test User", "program": "Beginner (BG)"})
+    # Generate program
+    response = client.post('/api/clients/Test User/generate_program', json={"experience": "beginner"})
     assert response.status_code == 200
     data = response.get_json()
-    assert data["bmi"] == 24.7
-    assert data["category"] == "Normal"
+    assert "schedule" in data
+    assert len(data["schedule"]) > 0
 
-def test_weight_chart_generation(client):
-    client.post('/api/metrics', json={"client_name": "Test User", "date": "2026-04-26", "weight": 80})
-    response = client.get('/api/metrics/Test User/chart')
+def test_pdf_report_generation(client):
+    client.post('/api/clients', json={"name": "Test User", "program": "Beginner (BG)", "weight": 70})
+    response = client.get('/api/clients/Test User/report')
     assert response.status_code == 200
-    assert "chart_image" in response.get_json()
+    assert response.headers["Content-Type"] == "application/pdf"
