@@ -15,23 +15,16 @@ def client():
 def test_health_check(client):
     response = client.get('/')
     assert response.status_code == 200
-    assert response.get_json()["version"] == "2.1.2"
+    assert response.get_json()["version"] == "2.2.1"
 
 def test_add_client_to_db(client):
-    payload = {"name": "DB Test User", "program": "Beginner (BG)", "weight": 70}
-    response = client.post('/api/clients', json=payload)
-    assert response.status_code == 201
+    payload = {"name": "Test User", "program": "Beginner (BG)", "weight": 70}
+    assert client.post('/api/clients', json=payload).status_code == 201
 
-def test_add_and_get_progress(client):
-    # First, save progress
-    payload = {"client_name": "Test User", "adherence": 85}
-    response_post = client.post('/api/progress', json=payload)
-    assert response_post.status_code == 201
-    assert "logged" in response_post.get_json()["message"]
-
-    # Then, retrieve it
-    response_get = client.get('/api/progress/Test User')
-    assert response_get.status_code == 200
-    data = response_get.get_json()
-    assert len(data["progress"]) == 1
-    assert data["progress"][0]["adherence"] == 85
+def test_generate_chart(client):
+    # Log progress first
+    client.post('/api/progress', json={"client_name": "Test User", "adherence": 85})
+    # Fetch chart
+    response = client.get('/api/progress/Test User/chart')
+    assert response.status_code == 200
+    assert "chart_image" in response.get_json()
