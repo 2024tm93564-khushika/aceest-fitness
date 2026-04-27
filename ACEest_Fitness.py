@@ -1,7 +1,7 @@
-# ACEest_Fitness.py (Version 3.1.2)
+# ACEest_Fitness.py (Version 3.2.4)
 from flask import Flask, jsonify, request, send_file
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 import matplotlib
 import io
@@ -23,11 +23,21 @@ def init_db():
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
     
-    # NEW in v3.1.2: Users table for Authentication
+    # Users table
     cur.execute('''CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, role TEXT)''')
     cur.execute("INSERT OR IGNORE INTO users (username, password, role) VALUES ('admin','admin','Admin')")
     
-    cur.execute('''CREATE TABLE IF NOT EXISTS clients (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, age INTEGER, height REAL, weight REAL, program TEXT, calories INTEGER, target_weight REAL, target_adherence INTEGER)''')
+    # Schema Migration for v3.2.4 (Adding Membership Columns)
+    cur.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='clients'")
+    if cur.fetchone():
+        cur.execute("PRAGMA table_info(clients)")
+        cols = {row[1] for row in cur.fetchall()}
+        if "membership_status" not in cols:
+            cur.execute("ALTER TABLE clients ADD COLUMN membership_status TEXT DEFAULT 'Active'")
+            cur.execute("ALTER TABLE clients ADD COLUMN membership_end TEXT")
+    else:
+        cur.execute('''CREATE TABLE clients (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, age INTEGER, height REAL, weight REAL, program TEXT, calories INTEGER, target_weight REAL, target_adherence INTEGER, membership_status TEXT DEFAULT 'Active', membership_end TEXT)''')
+
     cur.execute('''CREATE TABLE IF NOT EXISTS progress (id INTEGER PRIMARY KEY AUTOINCREMENT, client_name TEXT, week TEXT, adherence INTEGER)''')
     cur.execute('''CREATE TABLE IF NOT EXISTS workouts (id INTEGER PRIMARY KEY AUTOINCREMENT, client_name TEXT, date TEXT, workout_type TEXT, duration_min INTEGER, notes TEXT)''')
     cur.execute('''CREATE TABLE IF NOT EXISTS metrics (id INTEGER PRIMARY KEY AUTOINCREMENT, client_name TEXT, date TEXT, weight REAL, waist REAL, bodyfat REAL)''')
@@ -38,26 +48,7 @@ init_db()
 
 @app.route('/', methods=['GET'])
 def health_check():
-    return jsonify({"status": "healthy", "version": "3.1.2", "message": "ACEest API v3.1.2 (Auth & AI Gen) is running"}), 200
-
-# (Standard Endpoints: Clients, Progress, Workouts, Metrics, BMI, Charts...)
-@app.route('/api/clients', methods=['POST'])
-def add_client():
-    data = request.get_json()
-    program_data = PROGRAMS.get(data.get('program', 'Beginner (BG)'))
-    calories = int(data.get('weight', 0) * program_data['calorie_factor']) if program_data else 0
-    try:
-        conn = sqlite3.connect(DB_NAME)
-        cur = conn.cursor()
-        cur.execute("INSERT OR REPLACE INTO clients (name, age, height, weight, program, calories) VALUES (?, ?, ?, ?, ?, ?)", 
-                    (data['name'], data.get('age', 0), data.get('height', 0.0), data.get('weight', 0.0), data['program'], calories))
-        conn.commit()
-        conn.close()
-        return jsonify({"message": f"Client {data['name']} saved!"}), 201
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# ----- NEW v3.1.2 ENTERPRISE ENDPOINTS -----
+    return jsonify({"status": "healthy", "version": "3.2.4", "message": "ACEest API v3.2.4 (Final: Membership Edition) is running"}), 200
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -67,70 +58,44 @@ def login():
     cur.execute("SELECT role FROM users WHERE username=? AND password=?", (data.get('username'), data.get('password')))
     row = cur.fetchone()
     conn.close()
-    
-    if row:
-        return jsonify({"message": "Login successful", "role": row[0]}), 200
+    if row: return jsonify({"message": "Login successful", "role": row[0]}), 200
     return jsonify({"error": "Invalid credentials"}), 401
 
-@app.route('/api/clients/<client_name>/generate_program', methods=['POST'])
-def generate_ai_program(client_name):
+@app.route('/api/clients', methods=['POST'])
+def add_client():
     data = request.get_json()
-    exp_level = data.get('experience', 'beginner').lower()
+    if not data or 'name' not in data:
+        return jsonify({"error": "Missing client data"}), 400
+    program_data = PROGRAMS.get(data.get('program', 'Beginner (BG)'))
+    calories = int(data.get('weight', 0) * program_data['calorie_factor']) if program_data else 0
     
-    exercises_pool = {
-        "Full Body": ["Push-Up", "Pull-Up", "Lunge", "Plank", "Dumbbell Row", "Dumbbell Press"]
-    }
+    # Default 30-day membership for new clients
+    mem_end = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
     
-    if exp_level == "beginner":
-        sets_range, reps_range, days = (2, 3), (8, 12), 3
-    elif exp_level == "intermediate":
-        sets_range, reps_range, days = (3, 4), (8, 15), 4
-    else:
-        sets_range, reps_range, days = (4, 5), (6, 15), 5
+    try:
+        conn = sqlite3.connect(DB_NAME)
+        cur = conn.cursor()
+        cur.execute("INSERT OR REPLACE INTO clients (name, age, height, weight, program, calories, target_weight, target_adherence, membership_status, membership_end) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", 
+                    (data['name'], data.get('age', 0), data.get('height', 0.0), data.get('weight', 0.0), data.get('program', 'Beginner (BG)'), calories, data.get('target_weight', 0.0), data.get('target_adherence', 0), data.get('membership_status', 'Active'), data.get('membership_end', mem_end)))
+        conn.commit()
+        conn.close()
+        return jsonify({"message": f"Client {data['name']} saved!"}), 201
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-    weekly_days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"][:days]
-    schedule = []
-    
-    for day in weekly_days:
-        daily_ex = random.sample(exercises_pool["Full Body"], k=3)
-        for ex in daily_ex:
-            schedule.append({
-                "day": day,
-                "exercise": ex,
-                "sets": random.randint(*sets_range),
-                "reps": random.randint(*reps_range)
-            })
-            
-    return jsonify({"client": client_name, "experience": exp_level, "schedule": schedule}), 200
-
-@app.route('/api/clients/<client_name>/report', methods=['GET'])
-def generate_pdf_report(client_name):
+# NEW v3.2.4 ENDPOINT: Check Membership
+@app.route('/api/clients/<client_name>/membership', methods=['GET'])
+def check_membership(client_name):
     conn = sqlite3.connect(DB_NAME)
     cur = conn.cursor()
-    cur.execute("SELECT * FROM clients WHERE name=?", (client_name,))
+    cur.execute("SELECT membership_status, membership_end FROM clients WHERE name=?", (client_name,))
     row = cur.fetchone()
     conn.close()
     
     if not row:
         return jsonify({"error": "Client not found"}), 404
-
-    pdf = FPDF()
-    pdf.add_page()
-    pdf.set_font("Arial", "B", 16)
-    pdf.cell(0, 10, f"Client Report - {client_name}", ln=True, align="C")
-    pdf.set_font("Arial", "", 12)
-    pdf.ln(10)
-    pdf.cell(0, 10, f"Name: {row[1]}", ln=True)
-    pdf.cell(0, 10, f"Age: {row[2]}", ln=True)
-    pdf.cell(0, 10, f"Height: {row[3]} cm", ln=True)
-    pdf.cell(0, 10, f"Weight: {row[4]} kg", ln=True)
-    pdf.cell(0, 10, f"Program: {row[5]}", ln=True)
-    
-    # Save PDF to memory buffer
-    pdf_buffer = io.BytesIO(pdf.output(dest='S').encode('latin-1'))
-    pdf_buffer.seek(0)
-    
-    return send_file(pdf_buffer, download_name=f"{client_name}_report.pdf", as_attachment=True, mimetype='application/pdf')
+        
+    return jsonify({"client": client_name, "status": row[0], "renewal_date": row[1]}), 200
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
