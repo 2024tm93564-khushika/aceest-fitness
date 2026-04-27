@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
       - name: aceest-fitness-container
-        image: 2024tm93564/aceest-fitness:v1.0
+        image: 2024tm93564/aceest-fitness:v3.2.4
         ports:
         - containerPort: 5000
         imagePullPolicy: Always
