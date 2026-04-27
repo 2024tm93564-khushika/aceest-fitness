@@ -15,16 +15,16 @@ def client():
 def test_health_check(client):
     response = client.get('/')
     assert response.status_code == 200
-    assert response.get_json()["version"] == "2.2.1"
+    assert response.get_json()["version"] == "2.2.4"
 
-def test_add_client_to_db(client):
-    payload = {"name": "Test User", "program": "Beginner (BG)", "weight": 70}
-    assert client.post('/api/clients', json=payload).status_code == 201
+def test_add_workout(client):
+    payload = {"client_name": "Test User", "date": "2026-04-26", "workout_type": "Strength", "duration_min": 45}
+    response = client.post('/api/workouts', json=payload)
+    assert response.status_code == 201
+    assert "Workout logged" in response.get_json()["message"]
 
-def test_generate_chart(client):
-    # Log progress first
-    client.post('/api/progress', json={"client_name": "Test User", "adherence": 85})
-    # Fetch chart
-    response = client.get('/api/progress/Test User/chart')
-    assert response.status_code == 200
-    assert "chart_image" in response.get_json()
+def test_add_metrics(client):
+    payload = {"client_name": "Test User", "date": "2026-04-26", "weight": 72.5, "waist": 80.0, "bodyfat": 15.5}
+    response = client.post('/api/metrics', json=payload)
+    assert response.status_code == 201
+    assert "Metrics logged" in response.get_json()["message"]
