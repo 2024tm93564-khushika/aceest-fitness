@@ -1,23 +1,24 @@
-# k8s/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: aceest-fitness-deployment
+  name: aceest-version-b
   labels:
-    app: aceest-fitness
+    project: aceest-fitness
 spec:
   replicas: 2
   selector:
     matchLabels:
-      app: aceest-fitness
+      app: aceest-ab
+      track: b
   template:
     metadata:
       labels:
-        app: aceest-fitness
+        app: aceest-ab
+        track: b
+        project: aceest-fitness
     spec:
       containers:
-      - name: aceest-fitness-container
+      - name: aceest
         image: 2024tm93564/aceest-fitness:v3.2.4
         ports:
         - containerPort: 5000
-        imagePullPolicy: Always
