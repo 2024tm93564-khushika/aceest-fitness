@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: aceest-bg-service
+  labels:
+    project: aceest-fitness
+spec:
+  selector:
+    app: aceest
+    version: blue   # <-- this is what we patch to switch traffic
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 5000
+  type: NodePort

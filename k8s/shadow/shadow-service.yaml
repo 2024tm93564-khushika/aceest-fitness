@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: aceest-shadow-service
+  labels:
+    project: aceest-fitness
+spec:
+  selector:
+    app: aceest-shadow
+  ports:
+  - port: 80
+    targetPort: 5000
+  type: ClusterIP   # Notice this is ClusterIP, meaning it is hidden from the public!
