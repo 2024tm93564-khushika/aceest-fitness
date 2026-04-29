@@ -1,6 +1,10 @@
 pipeline {
     agent any
     
+    triggers {
+        githubPush()
+    }
+
     environment {
         DOCKER_IMAGE = "2024tm93564/aceest-fitness"
         IMAGE_TAG = "v3.2.4" 
@@ -23,7 +27,7 @@ pipeline {
 
         stage('SonarQube Quality Gate') {
             steps {
-                echo 'Pipeline connection established. SonarQube scanner will be integrated in the next release.'
+                echo 'Pipeline connection established.'
             }
         }
 
